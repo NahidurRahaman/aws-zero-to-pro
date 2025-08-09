@@ -1,0 +1,166 @@
+1.ইনস্টল করুন → cmd বা PowerShell খুলে চেক করুন:
+
+aws --version
+
+2.Linux / MacOS(install-aws)
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+3.AWS CLI ব্যবহারের জন্য আপনার একটি IAM User এর Access Key এবং Secret Key লাগবে।
+AWS Console → IAM → Users → আপনার ইউজার সিলেক্ট করুন
+Security credentials ট্যাবে যান → Create access key
+Key পেলে, CLI-তে কনফিগার করুন:
+
+aws configure
+
+4.আপনাকে জিজ্ঞেস করবে:
+
+AWS Access Key ID: <paste here>
+AWS Secret Access Key: <paste here>
+Default region name: ap-south-1  # বা আপনার পছন্দ
+Default output format: json
+
+5.Basic Commands Practice
+S3 Buckets List
+
+aws s3 ls
+
+6.S3 Bucket এর ভিতরের ফাইল লিস্ট
+
+aws s3 ls s3://your-bucket-name/
+
+7.EC2 Instances List
+
+aws ec2 describe-instances
+
+8.Region Specific EC2
+
+aws ec2 describe-instances --region ap-south-1
+
+9.Output format বদলাতে পারেন:
+
+aws ec2 describe-instances --output table
+
+10.CLI তে কোন কমান্ড ভুলে গেলে:
+
+aws help
+
+11.
+আমি আপনাকে AWS CLI দিয়ে EC2 Launch → Connect → Terminate ফুল প্র্যাকটিক্যাল স্ক্রিপ্ট ধাপে ধাপে বানিয়ে দিচ্ছি, যাতে আপনি একবারে প্র্যাকটিস করতে পারেন।
+
+Step 1 — Key Pair তৈরি
+
+aws ec2 create-key-pair \
+    --key-name my-key \
+    --query 'KeyMaterial' \
+    --output text > my-key.pem
+my-key.pem ফাইলটি আপনার SSH করার জন্য লাগবে
+
+Linux/Mac হলে পারমিশন দিন:
+chmod 400 my5678-key.pem
+
+🖼 Step 2 — AMI ID বের করা
+Amazon Linux 2 এর জন্য (region: ap-south-1)
+
+aws ec2 describe-images \
+    --owners amazon \
+    --filters "Name=name,Values=amzn2-ami-hvm-*-x86_64-gp2" "Name=state,Values=available" \
+    --query 'Images[*].[ImageId,Name]' \
+    --output table
+AMI ID নোট করুন, যেমন: ami-0c02fb55956c7d316
+
+📦 Step 3 — Security Group তৈরি
+
+aws ec2 create-security-group \
+    --group-name my-sg \
+    --description "Allow SSH access"
+
+🔓 Step 4 — SSH Port Allow করা
+
+aws ec2 authorize-security-group-ingress \
+    --group-name my-sg \
+    --protocol tcp \
+    --port 22 \
+    --cidr 0.0.0.0/0
+
+💻 Step 5 — EC2 Instance Launch করা
+
+aws ec2 run-instances \
+    --image-id ami-0c02fb55956c7d316 \
+    --count 1 \
+    --instance-type t2.micro \
+    --key-name my5678-key \
+    --security-groups my-sg \
+    --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=My-EC2-Server}]'
+এখানে:
+--key-name my-key → আগে তৈরি করা key pair (আপনার কমান্ড দিয়ে তৈরি হয়েছে)
+Value=My-EC2-Server → এখানে My-EC2-Server হচ্ছে আপনার EC2 instance-এর নাম
+
+🌐 Step 6 — Public IP বের করা
+
+aws ec2 describe-instances \
+    --instance-ids i-0123456789abcdef0 \
+    --query 'Reservations[0].Instances[0].PublicIpAddress' \
+    --output text
+
+🔑 Step 7 — SSH দিয়ে কানেক্ট করা
+
+ssh -i my-key.pem ec2-user@35.87.112.96
+
+🛑 Step 8 — Instance Terminate করা
+
+aws ec2 terminate-instances --instance-ids i-0123456789abcdef0
+
+Use the AWS CLI to create an S3 bucket and upload a file.
+
+📦 Step 1 — S3 Bucket তৈরি
+
+aws s3 mb s3://my-first-cli-bucket-12345 --region ap-south-1
+
+my-first-cli-bucket-12345 — নাম পুরো AWS এ ইউনিক হতে হবে
+--region ap-south-1 → আপনার পছন্দের region ব্যবহার করুন
+এখানে mb মানে হলো make bucket 
+
+📂 Step 2 — লোকাল ফাইল তৈরি করা
+
+echo "Hello from AWS CLI" > test.txt
+
+☁ Step 3 — ফাইল আপলোড করা
+
+aws s3 cp test.txt s3://fristbucket12/
+এখানে cp মানে হলো copy 🗂️
+
+🔍 Step 4 — Bucket এর কন্টেন্ট দেখা
+
+aws s3 ls s3://fristbucket12/
+
+📂 Step 5.
+📂 ১. ফোল্ডার আপলোড করা
+
+aws s3 cp my-folder s3://fristbucket12/ --recursive
+
+my-folder → আপনার লোকাল ফোল্ডারের নাম
+
+--recursive → ফোল্ডারের সব সাবফোল্ডার ও ফাইল আপলোড করবে
+
+🖼 ২. ইমেজ আপলোড করা
+aws s3 cp photo.jpg s3://fristbucket12/
+
+🎥 ৩. ভিডিও আপলোড করা
+
+aws s3 cp video.mp4 s3://fristbucket12/
+
+📌 আপলোডের পর চেক করা
+
+aws s3 ls s3://fristbucket12/
+
+🗑 Step 5 — (Optional) ফাইল বা Bucket ডিলিট করা
+ফাইল ডিলিট
+
+aws s3 rm s3://fristbucket12/test.txt
+
+পুরো bucket ডিলিট:
+aws s3 rb s3://fristbucket12 --force
